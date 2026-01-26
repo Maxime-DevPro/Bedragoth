@@ -1,13 +1,13 @@
 {
-  "name": "helioslauncher",
+  "name": "bedragoth",
   "version": "2.2.1",
-  "productName": "Helios Launcher",
-  "description": "Modded Minecraft Launcher",
-  "author": "Daniel Scalzi (https://github.com/dscalzi/)",
+  "productName": "Bedragoth launcher",
+  "description": "Serveur Bedragoth",
+  "author": "Anathos",
   "license": "UNLICENSED",
-  "homepage": "https://github.com/Anathos77/Bedragoth2",
+  "homepage": "https://github.com/Maxime-DevPro/Bedragoth",
   "bugs": {
-    "url": "https://github.com/Anathos77/Bedragoth2/issues"
+    "url": "https://github.com/Maxime-DevPro/Bedragoth/issues"
   },
   "private": true,
   "main": "index.js",
@@ -47,6 +47,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Anathos77/Bedragoth2.git"
+    "url": "git+https://github.com/Maxime-DevPro/Bedragoth.git"
   }
 }
