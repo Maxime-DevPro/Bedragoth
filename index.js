@@ -150,9 +150,14 @@ ipcMain.on(MSFT_OPCODE.OPEN_LOGIN, (ipcEvent, ...arguments_) => {
 
             queries.forEach(query => {
                 const [name, value] = query.split('=')
-                queryMap[name] = decodeURI(value)
+                queryMap[name] = value
             })
-
+            
+            // ✅ Correctif Microsoft OAuth (PR #388)
+            new URL(uri).searchParams.forEach((v, k) => {
+                queryMap[k] = v
+            })
+            
             ipcEvent.reply(MSFT_OPCODE.REPLY_LOGIN, MSFT_REPLY_TYPE.SUCCESS, queryMap, msftAuthViewSuccess)
 
             msftAuthSuccess = true
