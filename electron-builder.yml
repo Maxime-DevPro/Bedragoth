@@ -12,6 +12,8 @@ files:
 
 extraResources:
   - 'libraries'
+  - from: 'app/assets/images/TaskbarIcon.ico'
+    to: 'TaskbarIcon.ico'
 
 # Windows Configuration
 win: 
