@@ -43,6 +43,24 @@ const launch_progress_label   = document.getElementById('launch_progress_label')
 const launch_details_text     = document.getElementById('launch_details_text')
 const server_selection_button = document.getElementById('server_selection_button')
 const user_text               = document.getElementById('user_text')
+const modernLaunchProgress    = document.getElementById('modernLaunchProgress')
+const modernLaunchProgressText = document.getElementById('modernLaunchProgressText')
+const modernLaunchProgressPercent = document.getElementById('modernLaunchProgressPercent')
+const modernLaunchProgressFill = document.getElementById('modernLaunchProgressFill')
+const landingDiagnosticAlert  = document.getElementById('landingDiagnosticAlert')
+const landingDiagnosticAlertMessage = document.getElementById('landingDiagnosticAlertMessage')
+const landingDiagnosticFixButton = document.getElementById('landingDiagnosticFixButton')
+const bedragothServerCapsule = document.getElementById('bedragothServerCapsule')
+const bedragothServerStatusState = document.getElementById('bedragothServerStatusState')
+const bedragothServerStatusPlayers = document.getElementById('bedragothServerStatusPlayers')
+const bedragothServerLatency = document.getElementById('bedragothServerLatency')
+const bedragothServerPing = document.getElementById('bedragothServerPing')
+const majorOperationOverlay = document.getElementById('majorOperationOverlay')
+const majorOperationTitle = document.getElementById('majorOperationTitle')
+const majorOperationDetail = document.getElementById('majorOperationDetail')
+const majorOperationProgressFill = document.getElementById('majorOperationProgressFill')
+const majorOperationPercent = document.getElementById('majorOperationPercent')
+const majorOperationAccount = document.getElementById('majorOperationAccount')
 
 const loggerLanding = LoggerUtil.getLogger('Landing')
 
@@ -50,6 +68,88 @@ const loggerLanding = LoggerUtil.getLogger('Landing')
 let bedragothMaintenanceEnabled = false
 let bedragothMaintenanceMessage = ''
 let bedragothServerMessage = ''
+let launchUiBusy = false
+let launchUiMode = 'idle'
+let diagnosticFixHandler = null
+let majorOperationActive = false
+let majorOperationKind = null
+let majorOperationHideTimer = null
+
+function getSelectedAccountDisplayName(){
+    try {
+        return ConfigManager.getSelectedAccount()?.displayName || user_text?.textContent || ''
+    } catch(_err) {
+        return user_text?.textContent || ''
+    }
+}
+
+function setServerCapsuleState(online, players = null, maxPlayers = null, ping = null){
+    if(!bedragothServerCapsule) return
+
+    bedragothServerCapsule.dataset.state = online ? 'online' : 'offline'
+    bedragothServerStatusState.textContent = online ? 'EN LIGNE' : 'HORS LIGNE'
+    bedragothServerStatusPlayers.textContent = online && players != null ? `${players}${maxPlayers != null ? ` / ${maxPlayers}` : ''} joueur${players === 1 ? '' : 's'}` : '—'
+
+    if(online && Number.isFinite(ping)){
+        const roundedPing = Math.max(1, Math.round(ping))
+        bedragothServerPing.textContent = `${roundedPing} ms`
+        bedragothServerLatency.dataset.quality = roundedPing <= 90 ? 'good' : (roundedPing <= 180 ? 'medium' : 'poor')
+    } else {
+        bedragothServerPing.textContent = '— ms'
+        bedragothServerLatency.dataset.quality = 'offline'
+    }
+}
+
+function showMajorOperationOverlay(title, detail = '', kind = 'game'){
+    if(!majorOperationOverlay) return
+    if(majorOperationHideTimer){
+        clearTimeout(majorOperationHideTimer)
+        majorOperationHideTimer = null
+    }
+
+    majorOperationActive = true
+    majorOperationKind = kind
+    majorOperationTitle.textContent = title || 'PRÉPARATION DE BEDRAGOTH'
+    majorOperationDetail.textContent = detail || 'Préparation...'
+    majorOperationProgressFill.style.width = '0%'
+    majorOperationPercent.textContent = '0%'
+
+    const accountName = getSelectedAccountDisplayName()
+    majorOperationAccount.textContent = accountName ? `Connexion en tant que ${accountName}` : 'Préparation du client Bedragoth'
+
+    majorOperationOverlay.classList.add('visible')
+    majorOperationOverlay.setAttribute('aria-hidden', 'false')
+}
+
+function hideMajorOperationOverlay(delay = 0){
+    if(!majorOperationOverlay || !majorOperationActive) return
+
+    const hide = () => {
+        majorOperationOverlay.classList.remove('visible')
+        majorOperationOverlay.setAttribute('aria-hidden', 'true')
+        majorOperationActive = false
+        majorOperationKind = null
+        majorOperationHideTimer = null
+    }
+
+    if(delay > 0){
+        if(majorOperationHideTimer) clearTimeout(majorOperationHideTimer)
+        majorOperationHideTimer = setTimeout(hide, delay)
+    } else {
+        hide()
+    }
+}
+
+function setMajorOperationTitleForMode(mode){
+    if(!majorOperationActive || majorOperationKind !== 'game') return
+    if(mode === 'updating'){
+        majorOperationTitle.textContent = 'MISE À JOUR DE BEDRAGOTH'
+    } else if(mode === 'launching'){
+        majorOperationTitle.textContent = 'LANCEMENT DE BEDRAGOTH'
+    } else if(mode === 'preparing'){
+        majorOperationTitle.textContent = 'PRÉPARATION DE BEDRAGOTH'
+    }
+}
 
 function getBedragothRemoteConfig(distro){
     return distro?.rawDistribution?.bedragoth || {}
@@ -69,9 +169,13 @@ async function applyBedragothRemoteConfig(distro = null){
         const remoteServerMessage = document.getElementById('remote_server_message')
         const selectedServer = ConfigManager.getSelectedServer()
 
-        launchButton.innerHTML = bedragothMaintenanceEnabled ? 'MAINTENANCE' : 'JOUER'
-        launchButton.title = bedragothMaintenanceEnabled ? bedragothMaintenanceMessage : ''
-        launchButton.disabled = bedragothMaintenanceEnabled || selectedServer == null
+        if(!launchUiBusy){
+            launchButton.innerHTML = bedragothMaintenanceEnabled ? 'MAINTENANCE' : 'JOUER'
+            launchButton.title = bedragothMaintenanceEnabled ? bedragothMaintenanceMessage : ''
+            launchButton.disabled = bedragothMaintenanceEnabled || selectedServer == null
+            launchUiMode = 'idle'
+            launchButton.removeAttribute('data-mode')
+        }
 
         if(remoteServerMessage != null){
             if(bedragothServerMessage.trim().length > 0){
@@ -103,13 +207,75 @@ async function applyBedragothRemoteConfig(distro = null){
  * @param {boolean} loading True if the loading area should be shown, otherwise false.
  */
 function toggleLaunchArea(loading){
+    const launchButton = document.getElementById('launch_button')
+    launchUiBusy = loading
+
+    // Keep the modern PLAY button visible while validation/download work happens.
+    // The old launch_details nodes remain updated for compatibility, but are no longer
+    // the primary visual progress surface.
+    launch_details.style.display = 'none'
+    launch_content.style.display = 'inline-flex'
+    launch_content.classList.toggle('is-processing', loading)
+
     if(loading){
-        launch_details.style.display = 'flex'
-        launch_content.style.display = 'none'
+        modernLaunchProgress.classList.add('visible')
+        modernLaunchProgress.setAttribute('aria-hidden', 'false')
+        launchButton.disabled = true
+        if(launchUiMode === 'idle'){
+            setLaunchUiMode('preparing')
+        }
     } else {
-        launch_details.style.display = 'none'
-        launch_content.style.display = 'inline-flex'
+        modernLaunchProgress.classList.remove('visible')
+        modernLaunchProgress.setAttribute('aria-hidden', 'true')
+        if(majorOperationActive){
+            hideMajorOperationOverlay(220)
+        }
+        setLaunchUiMode('idle')
+        launchButton.innerHTML = bedragothMaintenanceEnabled ? 'MAINTENANCE' : 'JOUER'
+        launchButton.title = bedragothMaintenanceEnabled ? bedragothMaintenanceMessage : ''
+        launchButton.disabled = bedragothMaintenanceEnabled || ConfigManager.getSelectedServer() == null
     }
+}
+
+function setLaunchUiMode(mode){
+    launchUiMode = mode
+    const launchButton = document.getElementById('launch_button')
+    launchButton.setAttribute('data-mode', mode)
+    setMajorOperationTitleForMode(mode)
+
+    switch(mode){
+        case 'updating':
+            launchButton.innerHTML = 'METTRE À JOUR'
+            break
+        case 'launching':
+            launchButton.innerHTML = 'DÉMARRAGE...'
+            break
+        case 'preparing':
+            launchButton.innerHTML = 'PRÉPARATION...'
+            break
+        default:
+            launchButton.removeAttribute('data-mode')
+            launchButton.innerHTML = bedragothMaintenanceEnabled ? 'MAINTENANCE' : 'JOUER'
+            break
+    }
+}
+
+function showLandingDiagnosticAlert(message = 'Un problème a été détecté', fixHandler = null){
+    landingDiagnosticAlertMessage.textContent = message
+    diagnosticFixHandler = typeof fixHandler === 'function' ? fixHandler : requestRepairInstallation
+    landingDiagnosticAlert.classList.add('visible')
+    landingDiagnosticAlert.setAttribute('aria-hidden', 'false')
+}
+
+function hideLandingDiagnosticAlert(){
+    diagnosticFixHandler = null
+    landingDiagnosticAlert.classList.remove('visible')
+    landingDiagnosticAlert.setAttribute('aria-hidden', 'true')
+}
+
+landingDiagnosticFixButton.onclick = () => {
+    const handler = diagnosticFixHandler || requestRepairInstallation
+    handler()
 }
 
 /**
@@ -119,6 +285,10 @@ function toggleLaunchArea(loading){
  */
 function setLaunchDetails(details){
     launch_details_text.innerHTML = details
+    modernLaunchProgressText.textContent = details
+    if(majorOperationActive){
+        majorOperationDetail.textContent = String(details).replace(/<[^>]*>/g, '')
+    }
 }
 
 /**
@@ -127,9 +297,16 @@ function setLaunchDetails(details){
  * @param {number} percent Percentage (0-100)
  */
 function setLaunchPercentage(percent){
+    const safePercent = Math.max(0, Math.min(100, Number(percent) || 0))
     launch_progress.setAttribute('max', 100)
-    launch_progress.setAttribute('value', percent)
-    launch_progress_label.innerHTML = percent + '%'
+    launch_progress.setAttribute('value', safePercent)
+    launch_progress_label.innerHTML = safePercent + '%'
+    modernLaunchProgressPercent.textContent = safePercent + '%'
+    modernLaunchProgressFill.style.width = safePercent + '%'
+    if(majorOperationActive){
+        majorOperationPercent.textContent = safePercent + '%'
+        majorOperationProgressFill.style.width = safePercent + '%'
+    }
 }
 
 /**
@@ -197,6 +374,7 @@ async function repairInstallation(){
     try {
         repairButton.disabled = true
         launchButton.disabled = true
+        showMajorOperationOverlay('RÉPARATION DE BEDRAGOTH', 'Préparation de la réparation...', 'repair')
         setLaunchDetails('Préparation de la réparation...')
         toggleLaunchArea(true)
         setLaunchPercentage(0)
@@ -218,6 +396,7 @@ async function repairInstallation(){
         setLaunchPercentage(100)
 
         if(invalidFileCount > 0){
+            setLaunchUiMode('updating')
             setLaunchDetails(`Téléchargement de ${invalidFileCount} fichier(s) à réparer...`)
             setLaunchPercentage(0)
             await fullRepairModule.download(percent => setDownloadPercentage(percent))
@@ -246,7 +425,7 @@ async function repairInstallation(){
         toggleOverlay(true)
     } finally {
         if(fullRepairModule != null){
-            try { fullRepairModule.destroyReceiver() } catch(_err) {}
+            try { fullRepairModule.destroyReceiver() } catch(_err) { /* Already stopped. */ }
         }
         repairButton.disabled = oldRepairDisabled
         launchButton.disabled = bedragothMaintenanceEnabled ? true : oldLaunchDisabled
@@ -257,7 +436,7 @@ async function repairInstallation(){
 function requestRepairInstallation(){
     setOverlayContent(
         'Réparer Bedragoth',
-        "Cette opération vérifie les fichiers du jeu et du modpack gérés par le launcher pour le serveur Bedragoth (mods, bibliothèques et autres fichiers déclarés dans la distribution), puis retélécharge ceux qui sont manquants ou invalides. Elle ne répare pas l'application du launcher elle-même et ne supprime pas tes fichiers personnels.",
+        'Cette opération vérifie les fichiers du jeu et du modpack gérés par le launcher pour le serveur Bedragoth (mods, bibliothèques et autres fichiers déclarés dans la distribution), puis retélécharge ceux qui sont manquants ou invalides. Elle ne répare pas l\'application du launcher elle-même et ne supprime pas tes fichiers personnels.',
         'Lancer la réparation',
         'Annuler'
     )
@@ -337,7 +516,7 @@ document.getElementById('landingOpenLatestLogButton').onclick = async () => {
 document.getElementById('landingCopyLatestLogButton').onclick = async () => {
     const latestLog = landingPath.join(getLandingSelectedInstancePath(), 'logs', 'latest.log')
     if(!landingFs.existsSync(latestLog)){
-        setOverlayContent('latest.log introuvable', "Aucun fichier latest.log n'a été trouvé pour cette instance.", 'OK')
+        setOverlayContent('latest.log introuvable', 'Aucun fichier latest.log n\'a été trouvé pour cette instance.', 'OK')
         setOverlayHandler(() => toggleOverlay(false))
         toggleOverlay(true)
         setLandingQuickToolsOpen(false)
@@ -362,7 +541,7 @@ document.getElementById('landingOpenCrashReportsButton').onclick = async () => {
     await landingFs.ensureDir(crashPath)
     const error = await landingShell.openPath(crashPath)
     if(error){
-        setOverlayContent("Impossible d'ouvrir crash-reports", error, 'OK')
+        setOverlayContent('Impossible d\'ouvrir crash-reports', error, 'OK')
         setOverlayHandler(() => toggleOverlay(false))
         toggleOverlay(true)
     }
@@ -378,7 +557,7 @@ document.getElementById('landingCopyDiagnosticsButton').onclick = async () => {
         const freeRam = (require('os').freemem()/1073741824).toFixed(1)
         const javaExec = serverId != null ? ConfigManager.getJavaExecutable(serverId) : null
         const lines = [
-            '=== Diagnostic Bedragoth Launcher ===',
+            '=== Diagnostic Bedragoth ===',
             `Launcher : ${remote.app.getVersion()}`,
             `Système : ${process.platform} ${process.arch} - ${require('os').release()}`,
             `RAM : ${freeRam} Go libre / ${totalRam} Go total`,
@@ -535,34 +714,35 @@ const refreshMojangStatuses = async function(){
 
 const refreshServerStatus = async (fade = false) => {
     loggerLanding.info('Refreshing Server Status')
-    const serv = (await DistroAPI.getDistribution()).getServerById(ConfigManager.getSelectedServer())
+    const distro = await DistroAPI.getDistribution()
+    const serv = distro.getServerById(ConfigManager.getSelectedServer())
 
-    let pLabel = Lang.queryJS('landing.serverStatus.server')
-    let pVal = Lang.queryJS('landing.serverStatus.offline')
+    let capsuleOnline = false
+    let capsulePlayers = null
+    let capsuleMaxPlayers = null
+    let capsulePing = null
 
-    try {
-
-        const servStat = await getServerStatus(47, serv.hostname, serv.port)
-        console.log(servStat)
-        pLabel = Lang.queryJS('landing.serverStatus.players')
-        pVal = servStat.players.online + '/' + servStat.players.max
-
-    } catch (err) {
-        loggerLanding.warn('Unable to refresh server status, assuming offline.')
-        loggerLanding.debug(err)
+    if(serv != null){
+        const pingStarted = performance.now()
+        try {
+            const servStat = await getServerStatus(47, serv.hostname, serv.port)
+            capsulePing = performance.now() - pingStarted
+            capsuleOnline = true
+            capsulePlayers = servStat.players.online
+            capsuleMaxPlayers = servStat.players.max
+        } catch (err) {
+            loggerLanding.warn('Unable to refresh server status, assuming offline.')
+            loggerLanding.debug(err)
+        }
     }
-    if(fade){
-        $('#server_status_wrapper').fadeOut(250, () => {
-            document.getElementById('landingPlayerLabel').innerHTML = pLabel
-            document.getElementById('player_count').innerHTML = pVal
-            $('#server_status_wrapper').fadeIn(500)
-        })
-    } else {
-        document.getElementById('landingPlayerLabel').innerHTML = pLabel
-        document.getElementById('player_count').innerHTML = pVal
-    }
-    
+
+    setServerCapsuleState(capsuleOnline, capsulePlayers, capsuleMaxPlayers, capsulePing)
+
+    // Player count and connection state are displayed exclusively by the new
+    // #bedragothServerCapsule component above. Never reanimate the legacy
+    // #server_status_wrapper: fadeIn() made it reappear every five minutes.
 }
+
 
 refreshMojangStatuses()
 // Server Status is refreshed in uibinder.js on distributionIndexDone.
@@ -579,6 +759,7 @@ let serverStatusListener = setInterval(() => refreshServerStatus(true), 300000)
  * @param {string} desc The overlay description.
  */
 function showLaunchFailure(title, desc){
+    hideMajorOperationOverlay(0)
     setOverlayContent(
         title,
         desc,
@@ -587,6 +768,7 @@ function showLaunchFailure(title, desc){
     setOverlayHandler(null)
     toggleOverlay(true)
     toggleLaunchArea(false)
+    showLandingDiagnosticAlert('Le dernier lancement a rencontré un problème', requestRepairInstallation)
 }
 
 /* System (Java) Scan */
@@ -670,6 +852,12 @@ async function asyncSystemScan(effectiveJavaOptions, launchAfter = true){
 }
 
 async function downloadJava(effectiveJavaOptions, launchAfter = true) {
+
+    showMajorOperationOverlay(
+        `INSTALLATION DE JAVA ${effectiveJavaOptions.suggestedMajor}`,
+        'Téléchargement de l’environnement Java...',
+        'java'
+    )
 
     // TODO Error handling.
     // asset can be null.
@@ -814,6 +1002,14 @@ async function dlAsync(login = true) {
 
     if(invalidFileCount > 0) {
         loggerLaunchSuite.info('Downloading files.')
+        if(invalidFileCount >= 8){
+            showMajorOperationOverlay(
+                'MISE À JOUR DE BEDRAGOTH',
+                `${invalidFileCount} fichier${invalidFileCount === 1 ? '' : 's'} à télécharger`,
+                'game'
+            )
+        }
+        setLaunchUiMode('updating')
         setLaunchDetails(Lang.queryJS('landing.dlAsync.downloadingFiles'))
         setLaunchPercentage(0)
         try {
@@ -835,6 +1031,7 @@ async function dlAsync(login = true) {
 
     fullRepairModule.destroyReceiver()
 
+    setLaunchUiMode('launching')
     setLaunchDetails(Lang.queryJS('landing.dlAsync.preparingToLaunch'))
 
     const mojangIndexProcessor = new MojangIndexProcessor(
@@ -850,6 +1047,24 @@ async function dlAsync(login = true) {
     const versionData = await mojangIndexProcessor.getVersionJson()
 
     if(login) {
+        setLaunchDetails('Actualisation de la session Minecraft...')
+        const refreshResult = await AuthManager.refreshSelectedForLaunch()
+        if(!refreshResult.success) {
+            loggerLaunchSuite.error('The selected account could not be refreshed before launch.')
+            toggleLaunchArea(false)
+            if(refreshResult.reauthenticationRequired) {
+                await validateSelectedAccount(false)
+            } else {
+                const refreshError = refreshResult.error
+                showLaunchFailure(
+                    refreshError?.title || Lang.queryJS('landing.dlAsync.errorDuringLaunchTitle'),
+                    refreshError?.desc || 'Le renouvellement de la session a échoué. Réessayez dans quelques instants.'
+                )
+            }
+            return
+        }
+
+        // Fetch the account again: refreshing replaces its tokens in ConfigManager.
         const authUser = ConfigManager.getSelectedAccount()
         loggerLaunchSuite.info(`Sending selected account (${authUser.displayName}) to ProcessBuilder.`)
         let pb = new ProcessBuilder(serv, versionData, modLoaderData, authUser, remote.app.getVersion())
@@ -860,6 +1075,7 @@ async function dlAsync(login = true) {
 
         const onLoadComplete = () => {
             toggleLaunchArea(false)
+            hideLandingDiagnosticAlert()
             if(hasRPC){
                 DiscordWrapper.updateDetails(Lang.queryJS('landing.discord.loading'))
                 proc.stdout.on('data', gameStateChange)
@@ -963,8 +1179,27 @@ function slide_(up){
     const lCLCenter = document.querySelector('#landingContainer > #lower > #center')
     const lCLRight = document.querySelector('#landingContainer > #lower > #right')
     const newsBtn = document.getElementById('newsButtonContainer')
+    const newsBtnControl = document.getElementById('newsButton')
+    const newsBtnHome = document.getElementById('leftIconStack')
     const landingContainer = document.getElementById('landingContainer')
     const newsContainer = document.querySelector('#landingContainer > #newsContainer')
+
+    // The original news button lives inside #upper, which slides -200vh away.
+    // Move it into the news view while open so it stays visible AND remains the
+    // same working toggle (no duplicate listeners, no other UI to maintain).
+    if(up){
+        newsContainer.appendChild(newsBtn)
+        newsBtn.classList.add('news-mode')
+        newsBtnControl.setAttribute('aria-label', "Retour à l'accueil")
+        newsBtnControl.title = "Retour à l'accueil"
+    } else {
+        newsBtnHome.appendChild(newsBtn)
+        newsBtn.classList.remove('news-mode')
+        newsBtnControl.setAttribute('aria-label', 'Nouvelles')
+        newsBtnControl.title = 'Nouvelles'
+    }
+    // The legacy news tabbing toggle affects the button before it moves.
+    newsBtnControl.removeAttribute('tabindex')
 
     newsGlideCount++
 
@@ -1209,6 +1444,11 @@ async function initNews(){
  */
 document.addEventListener('keydown', (e) => {
     if(newsActive){
+        if(e.key === 'Escape'){
+            e.preventDefault()
+            document.getElementById('newsButton').click()
+            return
+        }
         if(e.key === 'ArrowRight' || e.key === 'ArrowLeft'){
             document.getElementById(e.key === 'ArrowRight' ? 'newsNavigateRight' : 'newsNavigateLeft').click()
         }

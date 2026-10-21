@@ -188,7 +188,11 @@ async function fullMicrosoftAuthFlow(entryCode, authMode) {
         if(authMode !== AUTH_MODE.MC_REFRESH) {
             const accessTokenResponse = await MicrosoftAuth.getAccessToken(entryCode, authMode === AUTH_MODE.MS_REFRESH, AZURE_CLIENT_ID)
             if(accessTokenResponse.responseStatus === RestResponseStatus.ERROR) {
-                return Promise.reject(microsoftErrorDisplayable(accessTokenResponse.microsoftErrorCode))
+                const error = microsoftErrorDisplayable(accessTokenResponse.microsoftErrorCode)
+                error.authStage = authMode === AUTH_MODE.MS_REFRESH ? 'microsoft_refresh' : 'microsoft_authorization'
+                error.reauthenticationRequired = authMode === AUTH_MODE.MS_REFRESH
+                    && accessTokenResponse.error?.response?.body?.error === 'invalid_grant'
+                return Promise.reject(error)
             }
             accessToken = accessTokenResponse.data
             accessTokenRaw = accessToken.access_token
@@ -236,6 +240,71 @@ async function fullMicrosoftAuthFlow(entryCode, authMode) {
  */
 function calculateExpiryDate(nowMs, epiresInS) {
     return nowMs + ((epiresInS-10)*1000)
+}
+
+let launchRefreshPromise = null
+
+/**
+ * Refresh the selected account immediately before launching Minecraft.
+ *
+ * Microsoft accounts always go through the complete refresh-token flow so the
+ * Xbox Live, XSTS and Minecraft Services tokens passed to the game are fresh.
+ * The promise is shared to prevent two concurrent launch attempts from rotating
+ * the same Microsoft refresh token at the same time.
+ *
+ * @returns {Promise.<Object>} Launch readiness and whether an interactive login is required.
+ */
+exports.refreshSelectedForLaunch = async function() {
+    if(launchRefreshPromise != null) {
+        return launchRefreshPromise
+    }
+
+    launchRefreshPromise = (async () => {
+        const current = ConfigManager.getSelectedAccount()
+        if(current == null) {
+            return { success: false, reauthenticationRequired: true }
+        }
+
+        if(current.type !== 'microsoft') {
+            const success = await validateSelectedMojangAccount()
+            return { success, reauthenticationRequired: !success }
+        }
+
+        if(current.microsoft == null || !current.microsoft.refresh_token) {
+            log.error('The selected Microsoft account has no refresh token.')
+            return { success: false, reauthenticationRequired: true }
+        }
+
+        try {
+            const res = await fullMicrosoftAuthFlow(current.microsoft.refresh_token, AUTH_MODE.MS_REFRESH)
+            const now = Date.now()
+
+            ConfigManager.updateMicrosoftAuthAccount(
+                current.uuid,
+                res.mcToken.access_token,
+                res.accessToken.access_token,
+                res.accessToken.refresh_token || current.microsoft.refresh_token,
+                calculateExpiryDate(now, res.accessToken.expires_in),
+                calculateExpiryDate(now, res.mcToken.expires_in)
+            )
+            ConfigManager.save()
+            log.info('Microsoft, Xbox Live, XSTS and Minecraft tokens refreshed for launch.')
+            return { success: true, reauthenticationRequired: false }
+        } catch(err) {
+            log.error('Unable to refresh the selected Microsoft account for launch.', err)
+            return {
+                success: false,
+                reauthenticationRequired: err?.reauthenticationRequired === true,
+                error: err
+            }
+        }
+    })()
+
+    try {
+        return await launchRefreshPromise
+    } finally {
+        launchRefreshPromise = null
+    }
 }
 
 /**
@@ -376,7 +445,7 @@ async function validateSelectedMicrosoftAccount(){
                 current.uuid,
                 res.mcToken.access_token,
                 res.accessToken.access_token,
-                res.accessToken.refresh_token,
+                res.accessToken.refresh_token || current.microsoft.refresh_token,
                 calculateExpiryDate(now, res.accessToken.expires_in),
                 calculateExpiryDate(now, res.mcToken.expires_in)
             )

@@ -123,8 +123,19 @@ ipcMain.handle('bedragothFetchRemote', async (event, url, mode = 'text') => {
 })
 
 // Redirect distribution index event from preloader to renderer.
+// Cache the last result as the preload script can finish before the renderer
+// has registered its IPC listener (especially with a localhost distribution).
+let distributionIndexResult
 ipcMain.on('distributionIndexDone', (event, res) => {
+    distributionIndexResult = res
     event.sender.send('distributionIndexDone', res)
+})
+
+// Renderer-side recovery for the startup race described above.
+ipcMain.on('distributionIndexRequest', (event) => {
+    if(distributionIndexResult !== undefined){
+        event.sender.send('distributionIndexDone', distributionIndexResult)
+    }
 })
 
 // Handle trash item.
@@ -168,7 +179,7 @@ ipcMain.on(MSFT_OPCODE.OPEN_LOGIN, (ipcEvent, ...arguments_) => {
         width: 520,
         height: 600,
         frame: true,
-        icon: getPlatformIcon('SealCircle')
+        icon: getPlatformIcon('TaskbarIcon')
     })
 
     msftAuthWindow.on('closed', () => {
@@ -226,7 +237,7 @@ ipcMain.on(MSFT_OPCODE.OPEN_LOGOUT, (ipcEvent, uuid, isLastAccount) => {
         width: 520,
         height: 600,
         frame: true,
-        icon: getPlatformIcon('SealCircle')
+        icon: getPlatformIcon('TaskbarIcon')
     })
 
     msftLogoutWindow.on('closed', () => {
@@ -272,7 +283,7 @@ function createWindow() {
     win = new BrowserWindow({
         width: 980,
         height: 552,
-        icon: getPlatformIcon('SealCircle'),
+        icon: getPlatformIcon('TaskbarIcon'),
         frame: false,
         webPreferences: {
             preload: path.join(__dirname, 'app', 'assets', 'js', 'preloader.js'),

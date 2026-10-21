@@ -365,7 +365,9 @@ exports.updateMicrosoftAuthAccount = function(uuid, accessToken, msAccessToken, 
     config.authenticationDatabase[uuid].accessToken = accessToken
     config.authenticationDatabase[uuid].expiresAt = mcExpires
     config.authenticationDatabase[uuid].microsoft.access_token = msAccessToken
-    config.authenticationDatabase[uuid].microsoft.refresh_token = msRefreshToken
+    if(msRefreshToken != null && msRefreshToken !== '') {
+        config.authenticationDatabase[uuid].microsoft.refresh_token = msRefreshToken
+    }
     config.authenticationDatabase[uuid].microsoft.expires_at = msExpires
     return config.authenticationDatabase[uuid]
 }

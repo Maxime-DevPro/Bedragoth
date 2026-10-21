@@ -75,6 +75,48 @@ function preloadBackground(url){
     })
 }
 
+function waitForBackgroundTransition(ms){
+    return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function applyBedragothBackground(url){
+    const layer = document.getElementById('backgroundMotionLayer')
+    const cssUrl = `url('${url}')`
+
+    // Fallback for early startup or unexpected DOM states.
+    if(layer == null){
+        document.body.style.backgroundImage = cssUrl
+        return
+    }
+
+    const previous = layer.dataset.background || ''
+    if(previous === url){
+        layer.classList.add('visible')
+        return
+    }
+
+    if(previous.length === 0){
+        document.body.style.backgroundImage = cssUrl
+        layer.style.backgroundImage = cssUrl
+        layer.dataset.background = url
+        requestAnimationFrame(() => layer.classList.add('visible'))
+        return
+    }
+
+    // The body keeps the previous artwork while the foreground layer fades,
+    // which gives us a real cross-fade without moving the launcher UI.
+    layer.classList.add('is-changing')
+    await waitForBackgroundTransition(180)
+    layer.style.backgroundImage = cssUrl
+    layer.dataset.background = url
+    requestAnimationFrame(() => {
+        layer.classList.remove('is-changing')
+        layer.classList.add('visible')
+    })
+    await waitForBackgroundTransition(680)
+    document.body.style.backgroundImage = cssUrl
+}
+
 async function resolveRemoteBackground(url){
     if(!/^https?:\/\//i.test(url)){
         return url
@@ -136,7 +178,7 @@ async function startBackgroundSlideshow(distro = null){
     // Preserve the existing bkid behaviour if no remote or bundled background exists.
     if(backgrounds.length === 0){
         const bkid = document.body.getAttribute('bkid')
-        document.body.style.backgroundImage = `url('assets/images/backgrounds/${bkid}.jpg')`
+        await applyBedragothBackground(`assets/images/backgrounds/${bkid}.jpg`)
         return
     }
 
@@ -154,7 +196,7 @@ async function startBackgroundSlideshow(distro = null){
         try {
             const resolvedUrl = await resolveRemoteBackground(url)
             await preloadBackground(resolvedUrl)
-            document.body.style.backgroundImage = `url('${resolvedUrl}')`
+            await applyBedragothBackground(resolvedUrl)
         } catch(err) {
             console.warn(`Unable to load background ${url}. Falling back to bundled backgrounds.`, err)
             const bundled = getBundledBackgrounds()
@@ -162,8 +204,8 @@ async function startBackgroundSlideshow(distro = null){
                 const fallback = bundled[Math.max(0, (index - 1)) % bundled.length]
                 try {
                     await preloadBackground(fallback)
-                    document.body.style.backgroundImage = `url('${fallback}')`
-                } catch(_) {}
+                    await applyBedragothBackground(fallback)
+                } catch(_) { /* Keep the previous background. */ }
             }
         }
     }
@@ -450,10 +492,10 @@ function mergeModConfiguration(o, n, nReq = false){
     return n
 }
 
-async function validateSelectedAccount(){
+async function validateSelectedAccount(validationResult = null){
     const selectedAcc = ConfigManager.getSelectedAccount()
     if(selectedAcc != null){
-        const val = await AuthManager.validateSelected()
+        const val = validationResult == null ? await AuthManager.validateSelected() : validationResult
         if(!val){
             ConfigManager.removeAuthAccount(selectedAcc.uuid)
             ConfigManager.save()
@@ -563,7 +605,16 @@ document.addEventListener('readystatechange', async () => {
 }, false)
 
 // Actions that must be performed after the distribution index is downloaded.
+// The preloader may finish before this script registers its listener when the
+// distribution is served locally. Guard against duplicate delivery and ask the
+// main process to replay the cached result if needed.
+let distributionIndexHandled = false
 ipcRenderer.on('distributionIndexDone', async (event, res) => {
+    if(distributionIndexHandled){
+        return
+    }
+    distributionIndexHandled = true
+
     if(res) {
         const data = await DistroAPI.getDistribution()
         syncModConfigurations(data)
@@ -582,6 +633,9 @@ ipcRenderer.on('distributionIndexDone', async (event, res) => {
         }
     }
 })
+
+// Recover if the preload event was emitted before this listener existed.
+ipcRenderer.send('distributionIndexRequest')
 
 // Util for development
 async function devModeToggle() {

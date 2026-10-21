@@ -3978,9 +3978,9 @@ input:checked + .toggleSwitchSlider:before {
 }
 
 #newsButtonContainer {
-    position: fixed;
-    top: 156px;
-    left: calc(15% - 52px);
+    position: relative;
+    top: auto;
+    left: auto;
     height: 34px;
     width: 34px;
     margin-top: 14px;
@@ -4399,3 +4399,1145 @@ input:checked + .toggleSwitchSlider:before {
 #welcomeButton:hover #welcomeSVG,#welcomeButton:focus #welcomeSVG,#loginButton:hover #loginSVG,#loginButton:focus #loginSVG { -webkit-filter:drop-shadow(0 0 3px var(--bedragoth-gold)); filter:drop-shadow(0 0 3px var(--bedragoth-gold)); }
 #welcomeButton:hover #welcomeSVG .arrowLine,#welcomeButton:focus #welcomeSVG .arrowLine,#loginButton:hover #loginSVG .arrowLine,#loginButton:focus #loginSVG .arrowLine { stroke:var(--bedragoth-gold); }
 .bbCodeSpoilerButton:hover,.bbCodeSpoilerButton:focus { color:var(--bedragoth-gold); text-shadow:0 0 8px var(--bedragoth-gold),0 0 16px var(--bedragoth-gold-deep); }
+
+/*******************************************************************************
+ * Bedragoth 2026 - focused launch experience
+ ******************************************************************************/
+
+/* Keep the existing cinematic layout; only modernise the launch interaction. */
+#landingContainer > #lower > #right .bot_wrapper {
+    position: relative;
+    width: 100%;
+}
+
+#landingContainer > #lower > #right #launch_content {
+    top: 25px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 285px;
+}
+
+#launch_button {
+    position: relative;
+    box-sizing: border-box;
+    width: 285px;
+    height: 50px;
+    padding: 0 48px 0 28px;
+    border: 1px solid rgba(229, 182, 83, .62);
+    border-radius: 3px;
+    background:
+        linear-gradient(180deg, rgba(20, 13, 10, .82), rgba(8, 8, 10, .88));
+    color: rgba(255, 247, 229, .96);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, .025),
+        0 8px 28px rgba(0, 0, 0, .24);
+    font-family: 'Avenir Medium';
+    font-size: 18px;
+    font-weight: 900;
+    letter-spacing: 3.2px;
+    text-align: center;
+    text-shadow: 0 1px 4px rgba(0, 0, 0, .9);
+    overflow: hidden;
+    transition:
+        color 180ms ease,
+        border-color 180ms ease,
+        background 180ms ease,
+        box-shadow 180ms ease,
+        transform 180ms ease,
+        opacity 180ms ease;
+}
+
+#launch_button::after {
+    content: '→';
+    position: absolute;
+    top: 50%;
+    right: 20px;
+    transform: translateY(-52%);
+    color: rgba(229, 182, 83, .88);
+    font-size: 19px;
+    font-weight: 400;
+    letter-spacing: 0;
+    transition: transform 180ms ease, color 180ms ease, opacity 180ms ease;
+}
+
+#launch_button:hover,
+#launch_button:focus {
+    color: #fff7df;
+    border-color: rgba(243, 198, 77, .94);
+    background:
+        linear-gradient(180deg, rgba(38, 19, 12, .90), rgba(14, 9, 9, .93));
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 224, 145, .08),
+        0 0 12px rgba(206, 105, 35, .24),
+        0 0 24px rgba(159, 35, 22, .12),
+        0 9px 30px rgba(0, 0, 0, .34);
+    text-shadow: 0 0 10px rgba(243, 198, 77, .34);
+    transform: translateY(-1px);
+}
+
+#launch_button:hover::after,
+#launch_button:focus::after {
+    color: #f3c64d;
+    transform: translate(3px, -52%);
+}
+
+#launch_button:active {
+    transform: translateY(0) scale(.992);
+}
+
+#launch_button:disabled {
+    opacity: .76;
+    color: rgba(255, 247, 229, .82);
+    border-color: rgba(229, 182, 83, .36);
+    cursor: default;
+    pointer-events: none;
+    transform: none;
+}
+
+#launch_button[data-mode='updating'] {
+    border-color: rgba(243, 198, 77, .84);
+    box-shadow: 0 0 18px rgba(212, 155, 36, .12);
+}
+
+#launch_button[data-mode='updating']::after,
+#launch_button[data-mode='preparing']::after,
+#launch_button[data-mode='launching']::after {
+    opacity: .45;
+}
+
+#launchSecondaryActions {
+    width: 285px;
+    min-height: 17px;
+    justify-content: center;
+    gap: 8px;
+    opacity: .92;
+    transition: opacity 180ms ease, transform 180ms ease;
+}
+
+#launch_content.is-processing #launchSecondaryActions {
+    opacity: .30;
+    transform: translateY(2px);
+    pointer-events: none;
+}
+
+.launchSecondaryDot {
+    color: rgba(255, 255, 255, .42);
+    font-size: 10px;
+    line-height: 17px;
+}
+
+#repair_button {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    padding: 0;
+}
+
+#repair_button:hover,
+#repair_button:focus {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+/* Slim progress display shown only while validation/update/launch work is running. */
+#modernLaunchProgress {
+    position: absolute;
+    top: -3px;
+    left: 0;
+    width: 285px;
+    opacity: 0;
+    transform: translateY(6px);
+    pointer-events: none;
+    transition: opacity 180ms ease, transform 180ms ease;
+}
+
+#modernLaunchProgress.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+#modernLaunchProgressHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+    color: rgba(255, 255, 255, .82);
+    font-family: 'Avenir Medium';
+    font-size: 9px;
+    line-height: 12px;
+    letter-spacing: .45px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, .95);
+}
+
+#modernLaunchProgressText {
+    max-width: 238px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#modernLaunchProgressPercent {
+    color: rgba(243, 198, 77, .96);
+    font-variant-numeric: tabular-nums;
+}
+
+#modernLaunchProgressTrack {
+    width: 100%;
+    height: 2px;
+    overflow: hidden;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, .14);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .55);
+}
+
+#modernLaunchProgressFill {
+    width: 0%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #8f3f1d, #d49b24, #f3c64d);
+    box-shadow: 0 0 8px rgba(243, 198, 77, .45);
+    transition: width 160ms linear;
+}
+
+/* Kept in the DOM for compatibility with the original Helios flow. */
+#launch_details {
+    display: none !important;
+}
+
+/* Hidden by default. It only appears after the launcher actually detects an error. */
+#landingDiagnosticAlert {
+    position: absolute;
+    top: 103px;
+    left: 0;
+    box-sizing: border-box;
+    width: 285px;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 7px 6px 10px;
+    border: 1px solid rgba(151, 49, 34, .62);
+    border-radius: 18px;
+    background: rgba(24, 9, 9, .76);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .24);
+    opacity: 0;
+    transform: translateY(7px) scale(.985);
+    pointer-events: none;
+    transition: opacity 200ms ease, transform 200ms ease, border-color 180ms ease;
+}
+
+#landingDiagnosticAlert.visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+#landingDiagnosticAlertText {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: rgba(238, 222, 217, .93);
+    font-size: 9px;
+    line-height: 12px;
+}
+
+#landingDiagnosticAlertMessage {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#landingDiagnosticAlertIcon {
+    flex: 0 0 auto;
+    width: 15px;
+    height: 15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #bd3325;
+    color: #fff;
+    font-family: 'Avenir Medium';
+    font-size: 10px;
+    font-weight: 900;
+}
+
+#landingDiagnosticFixButton {
+    flex: 0 0 auto;
+    height: 24px;
+    padding: 0 11px;
+    border: 1px solid rgba(196, 63, 42, .72);
+    border-radius: 12px;
+    background: rgba(80, 18, 15, .34);
+    color: #f4e9e6;
+    font-family: 'Avenir Medium';
+    font-size: 9px;
+    font-weight: 900;
+    cursor: pointer;
+    outline: none;
+    transition: background 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+#landingDiagnosticFixButton:hover,
+#landingDiagnosticFixButton:focus {
+    background: rgba(133, 31, 24, .52);
+    border-color: rgba(225, 79, 55, .95);
+    box-shadow: 0 0 10px rgba(188, 47, 32, .20);
+}
+
+/* Slightly quicker, cleaner micro-interactions on the landing page. */
+#landingContainer .mediaSVG,
+#landingContainer #newsSVG,
+#landingContainer #avatarContainer,
+#landingContainer #server_selection_button,
+#landingContainer #repair_button {
+    transition-duration: 180ms;
+}
+
+/* Optional motion layer: the UI stays perfectly still while the artwork breathes subtly. */
+#backgroundMotionLayer {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: cover;
+    opacity: 0;
+    transform: scale(1.012);
+    pointer-events: none;
+    will-change: opacity, transform;
+    transition: opacity 650ms ease;
+}
+
+#backgroundMotionLayer.visible {
+    opacity: 1;
+    animation: bedragothBackgroundBreath 18s ease-in-out infinite alternate;
+}
+
+#backgroundMotionLayer.is-changing {
+    opacity: .18;
+}
+
+@keyframes bedragothBackgroundBreath {
+    from { transform: scale(1.012); }
+    to { transform: scale(1.025); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #backgroundMotionLayer.visible { animation: none; transform: scale(1); }
+    #launch_button,
+    #modernLaunchProgress,
+    #landingDiagnosticAlert,
+    #modernLaunchProgressFill { transition-duration: 0ms; }
+}
+
+
+/*******************************************************************************
+ * Bedragoth 2026 - responsive launch sizing + website shortcut
+ *******************************************************************************/
+
+#landingContainer {
+    --bedragoth-launch-width: clamp(285px, 28vw, 520px);
+    --bedragoth-launch-height: clamp(50px, 6.5vh, 72px);
+    --bedragoth-launch-font-size: clamp(18px, 1.45vw, 28px);
+}
+
+/* Keep the launch block visually anchored to the lower-right on wide screens. */
+#landingContainer > #lower > #right {
+    justify-content: flex-end;
+    box-sizing: border-box;
+    padding-right: clamp(20px, 3.5vw, 72px);
+}
+
+#landingContainer > #lower > #right .bot_wrapper {
+    width: var(--bedragoth-launch-width);
+    min-width: var(--bedragoth-launch-width);
+    max-width: var(--bedragoth-launch-width);
+    margin-left: auto;
+}
+
+#landingContainer > #lower > #right #launch_content {
+    width: var(--bedragoth-launch-width);
+    min-width: var(--bedragoth-launch-width);
+}
+
+#launch_button {
+    width: var(--bedragoth-launch-width);
+    height: var(--bedragoth-launch-height);
+    font-size: var(--bedragoth-launch-font-size);
+    padding-left: clamp(26px, 2.3vw, 42px);
+    padding-right: clamp(46px, 3.4vw, 64px);
+}
+
+#launch_button::after {
+    right: clamp(18px, 1.5vw, 28px);
+    font-size: clamp(19px, 1.35vw, 27px);
+}
+
+#launchSecondaryActions,
+#modernLaunchProgress,
+#landingDiagnosticAlert {
+    width: var(--bedragoth-launch-width);
+}
+
+#launchSecondaryActions {
+    min-height: clamp(17px, 2.2vh, 22px);
+    gap: clamp(8px, .65vw, 12px);
+}
+
+#launchSecondaryActions .bot_label,
+#launchSecondaryActions .launchSecondaryDot {
+    font-size: clamp(9px, .65vw, 12px);
+}
+
+#modernLaunchProgressText {
+    max-width: calc(var(--bedragoth-launch-width) - 56px);
+}
+
+#modernLaunchProgressHeader {
+    font-size: clamp(9px, .62vw, 11px);
+}
+
+#landingDiagnosticAlert {
+    top: calc(25px + var(--bedragoth-launch-height) + 28px);
+}
+
+#landingDiagnosticAlertText,
+#landingDiagnosticFixButton {
+    font-size: clamp(9px, .6vw, 11px);
+}
+
+/* Dedicated Bedragoth website shortcut, placed directly below Discord. */
+#websiteMediaContainer {
+    margin-top: 4px;
+}
+
+#bedragothWebsiteURL {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    outline: none;
+}
+
+#bedragothWebsiteIcon {
+    width: 23px;
+    height: 23px;
+    object-fit: contain;
+    opacity: .92;
+    filter: drop-shadow(0 0 3px rgba(0, 0, 0, .85));
+    transform: scale(1);
+    transition: transform 180ms ease, opacity 180ms ease, filter 180ms ease;
+    cursor: pointer;
+}
+
+#bedragothWebsiteURL:hover #bedragothWebsiteIcon,
+#bedragothWebsiteURL:focus #bedragothWebsiteIcon {
+    opacity: 1;
+    transform: scale(1.18);
+    filter:
+        drop-shadow(0 0 3px rgba(0, 0, 0, .95))
+        drop-shadow(0 0 6px rgba(190, 13, 27, .56));
+}
+
+#bedragothWebsiteURL:active #bedragothWebsiteIcon {
+    transform: scale(1.08);
+}
+
+/* On a very small launcher window, preserve the old compact footprint. */
+@media (max-width: 1050px) {
+    #landingContainer {
+        --bedragoth-launch-width: clamp(270px, 29vw, 305px);
+        --bedragoth-launch-height: 50px;
+        --bedragoth-launch-font-size: 18px;
+    }
+
+    #landingContainer > #lower > #right {
+        padding-right: 18px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #bedragothWebsiteIcon { transition-duration: 0ms; }
+}
+
+/*******************************************************************************
+ * Bedragoth 2026 v3 - server capsule, major operations, refined media tooltips
+ *******************************************************************************/
+
+/* The compact top-left server card replaces the old bottom-left status strip. */
+#landingContainer > #lower > #left .bot_wrapper {
+    display: none;
+}
+
+#bedragothServerCapsule {
+    position: absolute;
+    z-index: 760;
+    top: clamp(28px, 5.2vh, 52px);
+    left: clamp(22px, 2.2vw, 44px);
+    min-width: 220px;
+    height: 48px;
+    padding: 0 13px 0 12px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid rgba(255, 255, 255, .075);
+    border-radius: 24px;
+    background: linear-gradient(105deg, rgba(8, 10, 12, .80), rgba(8, 10, 12, .48));
+    box-shadow: 0 7px 25px rgba(0, 0, 0, .20), inset 0 1px 0 rgba(255, 255, 255, .025);
+    backdrop-filter: blur(7px);
+    -webkit-backdrop-filter: blur(7px);
+    pointer-events: none;
+    user-select: none;
+    transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+#bedragothServerStatusDot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    background: #777;
+    box-shadow: 0 0 8px rgba(255, 255, 255, .08);
+    transition: background 180ms ease, box-shadow 180ms ease;
+}
+
+#bedragothServerStatusCopy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    line-height: 1;
+}
+
+#bedragothServerStatusLabel {
+    margin-bottom: 5px;
+    color: rgba(255, 255, 255, .52);
+    font-family: 'Avenir Medium';
+    font-size: 7px;
+    font-weight: 900;
+    letter-spacing: 1.15px;
+}
+
+#bedragothServerStatusLine {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    white-space: nowrap;
+}
+
+#bedragothServerStatusState {
+    color: #a7a7a7;
+    font-family: 'Avenir Heavy';
+    font-size: 10px;
+    letter-spacing: .55px;
+}
+
+#bedragothServerStatusPlayers {
+    color: rgba(255, 255, 255, .55);
+    font-family: 'Avenir Medium';
+    font-size: 8px;
+    letter-spacing: .25px;
+}
+
+#bedragothServerStatusDivider {
+    height: 25px;
+    width: 1px;
+    flex: 0 0 auto;
+    background: rgba(255, 255, 255, .10);
+}
+
+#bedragothServerLatency {
+    min-width: 34px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+}
+
+#bedragothLatencyBars {
+    height: 12px;
+    display: flex;
+    align-items: flex-end;
+    gap: 1.5px;
+}
+
+#bedragothLatencyBars i {
+    display: block;
+    width: 2px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, .22);
+    transition: background 180ms ease, box-shadow 180ms ease;
+}
+#bedragothLatencyBars i:nth-child(1) { height: 4px; }
+#bedragothLatencyBars i:nth-child(2) { height: 6px; }
+#bedragothLatencyBars i:nth-child(3) { height: 9px; }
+#bedragothLatencyBars i:nth-child(4) { height: 12px; }
+
+#bedragothServerPing {
+    color: rgba(255, 255, 255, .42);
+    font-family: 'Avenir Medium';
+    font-size: 7px;
+    letter-spacing: .25px;
+    white-space: nowrap;
+}
+
+#bedragothServerCapsule[data-state="online"] #bedragothServerStatusDot {
+    background: #1bd36a;
+    box-shadow: 0 0 10px rgba(27, 211, 106, .72);
+}
+#bedragothServerCapsule[data-state="online"] #bedragothServerStatusState { color: #f4f4f4; }
+#bedragothServerLatency[data-quality="good"] #bedragothLatencyBars i { background: #21cf70; box-shadow: 0 0 4px rgba(33, 207, 112, .28); }
+#bedragothServerLatency[data-quality="medium"] #bedragothLatencyBars i:nth-child(-n+3) { background: #d0a93b; }
+#bedragothServerLatency[data-quality="poor"] #bedragothLatencyBars i:nth-child(-n+2) { background: #d25b44; }
+
+/* Major operations deliberately leave the artwork barely visible underneath. */
+#majorOperationOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: 9800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    background:
+        radial-gradient(circle at 50% 42%, rgba(28, 23, 15, .33) 0%, rgba(5, 6, 7, .77) 38%, rgba(4, 5, 6, .94) 78%),
+        rgba(5, 6, 7, .88);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    transition: opacity 260ms ease, visibility 0s linear 260ms;
+}
+
+#majorOperationOverlay.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: all;
+    transition: opacity 260ms ease, visibility 0s linear 0s;
+}
+
+#majorOperationAmbient {
+    position: absolute;
+    width: min(56vw, 760px);
+    height: min(56vw, 760px);
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(185, 132, 28, .065), transparent 64%);
+    filter: blur(2px);
+    animation: bedragothOperationPulse 5s ease-in-out infinite alternate;
+}
+
+@keyframes bedragothOperationPulse {
+    from { opacity: .45; transform: scale(.95); }
+    to { opacity: .9; transform: scale(1.04); }
+}
+
+#majorOperationPanel {
+    position: relative;
+    z-index: 1;
+    width: clamp(330px, 38vw, 650px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform: translateY(6px);
+    opacity: .96;
+}
+
+#majorOperationBrand {
+    color: #f3f0ea;
+    font-family: 'Ringbearer';
+    font-size: clamp(31px, 3.4vw, 56px);
+    letter-spacing: 2px;
+    text-shadow: 0 3px 20px rgba(0, 0, 0, .75);
+}
+
+#majorOperationBrandLine {
+    width: clamp(95px, 10vw, 170px);
+    height: 1px;
+    margin: 12px 0 27px;
+    background: linear-gradient(90deg, transparent, rgba(190, 137, 33, .88), transparent);
+    box-shadow: 0 0 10px rgba(174, 119, 20, .18);
+}
+
+#majorOperationTitle {
+    color: #cda844;
+    font-family: 'Avenir Medium';
+    font-size: clamp(12px, 1.05vw, 18px);
+    font-weight: 900;
+    letter-spacing: clamp(2px, .30vw, 5px);
+    text-align: center;
+}
+
+#majorOperationDetail {
+    min-height: 18px;
+    margin-top: 10px;
+    color: rgba(255, 255, 255, .48);
+    font-family: 'Avenir Book';
+    font-size: clamp(9px, .72vw, 12px);
+    letter-spacing: .9px;
+    text-align: center;
+}
+
+#majorOperationProgressTrack {
+    width: 100%;
+    height: 6px;
+    margin-top: 28px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, .06);
+    border-radius: 6px;
+    background: rgba(0, 0, 0, .52);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, .70);
+}
+
+#majorOperationProgressFill {
+    width: 0%;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #8f6517 0%, #d0a52f 48%, #f0e1ad 100%);
+    box-shadow: 0 0 12px rgba(218, 171, 49, .28);
+    transition: width 180ms ease;
+}
+
+#majorOperationProgressMeta {
+    width: 100%;
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+}
+
+#majorOperationPercent {
+    color: #b28a2a;
+    font-family: 'Avenir Medium';
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 1px;
+}
+
+#majorOperationAccount {
+    margin-top: 34px;
+    color: rgba(255, 255, 255, .28);
+    font-family: 'Avenir Book';
+    font-size: 8px;
+    letter-spacing: .7px;
+}
+
+/* Refined icon rail: the icons remain minimal, labels appear only on intent. */
+#settingsTooltip,
+#devToolsTooltip,
+#quickToolsTooltip {
+    display: none !important;
+}
+
+.mediaContainer[data-tooltip] {
+    position: relative;
+    width: 34px;
+    border-radius: 9px;
+    transition: background 160ms ease, transform 160ms ease;
+}
+
+.mediaContainer[data-tooltip]:hover,
+.mediaContainer[data-tooltip]:focus-within {
+    background: rgba(8, 9, 11, .40);
+    transform: translateX(-1px);
+}
+
+.mediaContainer[data-tooltip]::before {
+    content: attr(data-tooltip);
+    position: absolute;
+    z-index: 50;
+    right: calc(100% + 11px);
+    top: 50%;
+    min-width: max-content;
+    padding: 5px 9px;
+    border: 1px solid rgba(255, 255, 255, .07);
+    border-radius: 6px;
+    background: rgba(6, 7, 9, .90);
+    color: rgba(255, 255, 255, .90);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+    font-family: 'Avenir Medium';
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .45px;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(5px, -50%);
+    pointer-events: none;
+    transition: opacity 150ms ease, transform 150ms ease, visibility 0s linear 150ms;
+}
+
+.mediaContainer[data-tooltip]::after {
+    content: '';
+    position: absolute;
+    z-index: 51;
+    right: calc(100% + 6px);
+    top: 50%;
+    width: 7px;
+    height: 7px;
+    border-top: 1px solid rgba(255, 255, 255, .07);
+    border-right: 1px solid rgba(255, 255, 255, .07);
+    background: rgba(6, 7, 9, .90);
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(5px, -50%) rotate(45deg);
+    pointer-events: none;
+    transition: opacity 150ms ease, transform 150ms ease, visibility 0s linear 150ms;
+}
+
+.mediaContainer[data-tooltip]:hover::before,
+.mediaContainer[data-tooltip]:hover::after,
+.mediaContainer[data-tooltip]:focus-within::before,
+.mediaContainer[data-tooltip]:focus-within::after {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(0, -50%);
+    transition-delay: 0s;
+}
+.mediaContainer[data-tooltip]:hover::after,
+.mediaContainer[data-tooltip]:focus-within::after {
+    transform: translate(0, -50%) rotate(45deg);
+}
+
+#landingContainer .mediaContainer[data-tooltip] .mediaSVG,
+#landingContainer .mediaContainer[data-tooltip] #bedragothWebsiteIcon {
+    transition: transform 160ms ease, opacity 160ms ease, fill 160ms ease, filter 160ms ease, height 160ms ease;
+}
+
+#landingContainer .mediaContainer[data-tooltip]:hover .mediaSVG,
+#landingContainer .mediaContainer[data-tooltip]:focus-within .mediaSVG {
+    transform: scale(1.16);
+}
+
+@media (max-width: 1050px) {
+    #bedragothServerCapsule {
+        top: 43px;
+        left: 18px;
+        min-width: 205px;
+        height: 44px;
+        transform: scale(.92);
+        transform-origin: top left;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #majorOperationOverlay,
+    #majorOperationProgressFill,
+    #majorOperationAmbient,
+    .mediaContainer[data-tooltip],
+    .mediaContainer[data-tooltip]::before,
+    .mediaContainer[data-tooltip]::after {
+        animation: none !important;
+        transition-duration: 0ms !important;
+    }
+}
+
+/*******************************************************************************
+ * Bedragoth 2026 v4 - compact launch, bottom server capsule, services restored
+ *******************************************************************************/
+
+/* Keep the Microsoft/Mojang service health indicator available at the bottom. */
+#landingContainer > #lower > #left .bot_wrapper {
+    display: flex;
+    position: absolute;
+    left: clamp(270px, 20vw, 335px);
+    bottom: 24px;
+    width: auto;
+    min-width: 0;
+    height: auto;
+    margin: 0;
+    align-items: center;
+    justify-content: flex-start;
+    z-index: 765;
+}
+
+/* The new capsule already carries Minecraft server/player status, so avoid
+   showing the old duplicate server readout while preserving service status. */
+#landingContainer > #lower > #left #server_status_wrapper,
+#landingContainer > #lower > #left .bot_divider {
+    /* The legacy counter must never reappear during status refreshes. */
+    display: none !important;
+}
+
+#landingContainer > #lower > #left #content {
+    position: static;
+    top: auto;
+    left: auto;
+    display: flex;
+    align-items: center;
+    line-height: normal;
+}
+
+#landingContainer > #lower > #left #mojangStatusWrapper {
+    display: flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 0 8px;
+    border-radius: 17px;
+    background: rgba(6, 7, 9, .34);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+
+#landingContainer > #lower > #left #mojang_status_icon {
+    margin-left: 9px;
+    font-size: 24px;
+    line-height: 20px;
+}
+
+/* Move the server capsule to the lower-left so it never overlaps the logo. */
+#bedragothServerCapsule {
+    top: auto;
+    left: clamp(22px, 2.2vw, 44px);
+    bottom: 22px;
+    min-width: 220px;
+}
+
+/* The Bedragoth seal artwork already contains its own circular shape. */
+#image_seal {
+    border: none;
+}
+
+/* Compact launch block: roughly half the visual footprint of v3 on wide views. */
+#landingContainer {
+    --bedragoth-launch-width: clamp(210px, 16vw, 300px);
+    --bedragoth-launch-height: clamp(38px, 4.2vh, 46px);
+    --bedragoth-launch-font-size: clamp(13px, .9vw, 17px);
+}
+
+#landingContainer > #lower > #right {
+    padding-right: clamp(18px, 2.6vw, 52px);
+}
+
+#launch_button {
+    padding-left: clamp(18px, 1.35vw, 26px);
+    padding-right: clamp(34px, 2vw, 44px);
+    letter-spacing: clamp(2px, .17vw, 2.8px);
+    border-radius: 3px;
+}
+
+#launch_button::after {
+    right: clamp(13px, 1vw, 18px);
+    font-size: clamp(15px, .95vw, 19px);
+}
+
+#launchSecondaryActions {
+    min-height: 14px;
+    gap: 6px;
+}
+
+#launchSecondaryActions .bot_label,
+#launchSecondaryActions .launchSecondaryDot {
+    font-size: clamp(7px, .48vw, 9px);
+}
+
+#modernLaunchProgressHeader,
+#landingDiagnosticAlertText,
+#landingDiagnosticFixButton {
+    font-size: clamp(8px, .5vw, 9px);
+}
+
+#landingDiagnosticAlert {
+    top: calc(25px + var(--bedragoth-launch-height) + 23px);
+}
+
+/* Use the exact supplied Bedragoth emblem PNG for the website shortcut. */
+#bedragothWebsiteIcon {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    opacity: .96;
+    filter: drop-shadow(0 0 3px rgba(0, 0, 0, .88));
+}
+
+#bedragothWebsiteURL:hover #bedragothWebsiteIcon,
+#bedragothWebsiteURL:focus #bedragothWebsiteIcon {
+    transform: scale(1.14);
+    filter:
+        drop-shadow(0 0 3px rgba(0, 0, 0, .95))
+        drop-shadow(0 0 5px rgba(190, 13, 27, .52));
+}
+
+@media (max-width: 1050px) {
+    #landingContainer {
+        --bedragoth-launch-width: clamp(205px, 24vw, 235px);
+        --bedragoth-launch-height: 40px;
+        --bedragoth-launch-font-size: 14px;
+    }
+
+    #bedragothServerCapsule {
+        top: auto;
+        left: 18px;
+        bottom: 18px;
+        min-width: 205px;
+        height: 44px;
+        transform: scale(.92);
+        transform-origin: bottom left;
+    }
+
+    #landingContainer > #lower > #left .bot_wrapper {
+        left: 224px;
+        bottom: 18px;
+        transform: scale(.92);
+        transform-origin: bottom left;
+    }
+}
+
+/*******************************************************************************
+ * Bedragoth 2026 v8 - larger seal, bottom-aligned launch, high-visibility icons
+ *******************************************************************************/
+
+/* The supplied red Bedragoth emblem should read as a real brand mark, not a
+   tiny circular badge. Keep it large and unclipped. */
+#image_seal_container {
+    width: 100px;
+    height: 100px;
+    margin-top: 40px;
+    border-radius: 0;
+}
+
+#image_seal {
+    width: 100px;
+    height: 100px;
+    object-fit: contain;
+    border-radius: 0;
+    filter: drop-shadow(0 2px 10px rgba(0, 0, 0, .50));
+}
+
+/* On large/fullscreen windows, the launch block now sits on the same bottom
+   baseline as the server/services controls instead of floating higher. */
+#landingContainer > #lower > #right {
+    align-items: flex-end;
+    padding-bottom: 20px;
+}
+
+#landingContainer > #lower > #right .bot_wrapper {
+    position: relative;
+    bottom: auto;
+    margin-top: auto;
+    margin-bottom: 0;
+}
+
+#landingContainer > #lower > #right #launch_content {
+    top: auto;
+}
+
+/* Keep the subtle progress strip immediately above the launch button after
+   moving the whole block to the bottom. */
+#modernLaunchProgress {
+    top: -20px;
+}
+
+/* Diagnostic appears above the launch block, never below the viewport. */
+#landingDiagnosticAlert {
+    top: auto;
+    bottom: calc(var(--bedragoth-launch-height) + 34px);
+}
+
+@media (max-width: 1050px) {
+    #image_seal_container,
+    #image_seal {
+        width: 82px;
+        height: 82px;
+    }
+
+    #image_seal_container {
+        margin-top: 43px;
+    }
+
+    #landingContainer > #lower > #right {
+        padding-bottom: 16px;
+    }
+}
+
+
+/*******************************************************************************
+ * Bedragoth 4.0.0 - news navigation (desktop and compact windows)
+ * Keep the SAME news button visible when #upper slides out of view.
+ ******************************************************************************/
+
+/* The label is invisible in the landing view's small round news button. */
+#newsButtonBackText {
+    display: none;
+}
+
+/* slide_() moves the original button into #newsContainer when news opens. */
+#landingContainer > #newsContainer > #newsButtonContainer.news-mode {
+    position: absolute;
+    top: clamp(16px, 3.5vh, 36px);
+    left: clamp(20px, 3vw, 60px);
+    width: auto;
+    height: 40px;
+    margin: 0;
+    z-index: 900;
+    transition: none;
+}
+
+#landingContainer > #newsContainer > #newsButtonContainer.news-mode #newsButton {
+    display: inline-flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: 40px;
+    height: 40px;
+    width: auto;
+    padding: 0 15px;
+    border-radius: 7px;
+    border: 1px solid rgba(243, 198, 77, .60);
+    background: rgba(6, 7, 11, .86);
+    box-shadow: 0 2px 14px rgba(0, 0, 0, .45);
+    color: #fff;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+
+#landingContainer > #newsContainer > #newsButtonContainer.news-mode #newsSVG {
+    display: block;
+    flex: 0 0 18px;
+    width: 18px;
+    height: 18px;
+}
+
+#landingContainer > #newsContainer > #newsButtonContainer.news-mode #newsButtonBackText {
+    display: inline;
+    color: #fff;
+    font-family: 'Avenir Medium', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .4px;
+    white-space: nowrap;
+}
+
+#landingContainer > #newsContainer > #newsButtonContainer.news-mode #newsButton:hover,
+#landingContainer > #newsContainer > #newsButtonContainer.news-mode #newsButton:focus {
+    color: var(--bedragoth-gold, #f3c64d);
+    background: rgba(20, 15, 12, .94);
+    outline: 1px solid var(--bedragoth-gold, #f3c64d);
+}
+
+#landingContainer > #newsContainer > #newsButtonContainer.news-mode #newsUnreadTooltip,
+#landingContainer > #newsContainer > #newsButtonContainer.news-mode #newsButtonAlert {
+    display: none !important;
+}
+
+@media (max-width: 700px) {
+    #landingContainer > #newsContainer > #newsButtonContainer.news-mode {
+        left: 14px;
+        top: 14px;
+        height: 36px;
+    }
+    #landingContainer > #newsContainer > #newsButtonContainer.news-mode #newsButton {
+        height: 36px;
+        padding: 0 10px;
+        gap: 7px;
+    }
+    #landingContainer > #newsContainer > #newsButtonContainer.news-mode #newsButtonBackText {
+        font-size: 10px;
+    }
+}

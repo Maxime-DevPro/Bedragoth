@@ -1482,7 +1482,7 @@ document.getElementById('settingsCopyDiagnosticsButton').onclick = async () => {
         const freeRam = (os.freemem()/1073741824).toFixed(1)
         const javaExec = serverId != null ? ConfigManager.getJavaExecutable(serverId) : null
         const lines = [
-            '=== Diagnostic Bedragoth Launcher ===',
+            '=== Diagnostic Bedragoth ===',
             `Launcher : ${remote.app.getVersion()}`,
             `Système : ${process.platform} ${process.arch} - ${os.release()}`,
             `RAM : ${freeRam} Go libre / ${totalRam} Go total`,
@@ -1576,7 +1576,7 @@ async function populateReleaseNotes(){
         const changelog = distro?.rawDistribution?.bedragoth?.changelog
 
         if(changelog != null){
-            settingsAboutChangelogTitle.innerHTML = changelog.title || 'Bedragoth Launcher'
+            settingsAboutChangelogTitle.innerHTML = changelog.title || 'Bedragoth'
             settingsAboutChangelogText.innerHTML = changelog.content || 'Aucune note de publication.'
 
             if(changelog.url){
@@ -1593,11 +1593,11 @@ async function populateReleaseNotes(){
                 settingsAboutChangelogButton.innerHTML = 'Notes Bedragoth'
             }
         } else {
-            settingsAboutChangelogTitle.innerHTML = 'Bedragoth Launcher'
+            settingsAboutChangelogTitle.innerHTML = 'Bedragoth'
             settingsAboutChangelogText.innerHTML = 'Aucune note de publication configurée dans la distribution.'
         }
     } catch(err) {
-        settingsAboutChangelogTitle.innerHTML = 'Bedragoth Launcher'
+        settingsAboutChangelogTitle.innerHTML = 'Bedragoth'
         settingsAboutChangelogText.innerHTML = 'Impossible de charger les notes de version Bedragoth.'
     }
 }
