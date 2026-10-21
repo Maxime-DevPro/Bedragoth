@@ -336,6 +336,13 @@ document.getElementById('launch_button').addEventListener('click', async e => {
         toggleOverlay(true)
         return
     }
+    // Show the branded launch screen on EVERY click, even if all files are current.
+    if(launchUiBusy) return
+    showMajorOperationOverlay('PRÉPARATION DE BEDRAGOTH', 'Vérification de l’instance sélectionnée...', 'game')
+    setLaunchDetails('Préparation du lancement...')
+    toggleLaunchArea(true)
+    setLaunchPercentage(0)
+
     loggerLanding.info('Launching game..')
     try {
         const server = (await DistroAPI.getDistribution()).getServerById(ConfigManager.getSelectedServer())
@@ -436,7 +443,7 @@ async function repairInstallation(){
 function requestRepairInstallation(){
     setOverlayContent(
         'Réparer Bedragoth',
-        'Cette opération vérifie les fichiers du jeu et du modpack gérés par le launcher pour le serveur Bedragoth (mods, bibliothèques et autres fichiers déclarés dans la distribution), puis retélécharge ceux qui sont manquants ou invalides. Elle ne répare pas l\'application du launcher elle-même et ne supprime pas tes fichiers personnels.',
+        'Cette opération vérifie les fichiers du jeu et du modpack pour le serveur. (mods, bibliothèques et autres fichiers déclarés dans la distribution), puis retélécharge ceux qui sont manquants ou invalides. Elle ne répare pas l\'application du launcher elle-même et ne supprime pas tes fichiers personnels.',
         'Lancer la réparation',
         'Annuler'
     )
@@ -830,6 +837,10 @@ async function asyncSystemScan(effectiveJavaOptions, launchAfter = true){
                 $('#overlayContent').fadeIn(250)
             })
         })
+        // The Java prompt must remain actionable rather than hidden behind
+        // the full-screen branded launch overlay.
+        toggleLaunchArea(false)
+        hideMajorOperationOverlay(0)
         toggleOverlay(true, true)
     } else {
         // Java installation found, use this to launch the game.
@@ -858,6 +869,8 @@ async function downloadJava(effectiveJavaOptions, launchAfter = true) {
         'Téléchargement de l’environnement Java...',
         'java'
     )
+    toggleLaunchArea(true)
+    setLaunchPercentage(0)
 
     // TODO Error handling.
     // asset can be null.
@@ -928,7 +941,9 @@ let hasRPC = false
 // Joined server regex
 // Change this if your server uses something different.
 const GAME_JOINED_REGEX = /\[.+\]: Sound engine started/
-const GAME_LAUNCH_REGEX = /^\[.+\]: (?:MinecraftForge .+ Initialized|ModLauncher .+ starting: .+|Loading Minecraft .+ with Fabric Loader .+)$/
+// Look for Forge, NeoForge, or Fabric boot messages. NeoForge's log includes
+// additional logger prefixes, so do not require an exact line-start match.
+const GAME_LAUNCH_REGEX = /(?:MinecraftForge .+ Initialized|ModLauncher .+ starting:|Loading Minecraft .+ with Fabric Loader|Sound engine started)/i
 const MIN_LINGER = 5000
 
 async function dlAsync(login = true) {
@@ -956,10 +971,16 @@ async function dlAsync(login = true) {
     if(login) {
         if(ConfigManager.getSelectedAccount() == null){
             loggerLanding.error('You must be logged into an account.')
+            showLaunchFailure('Compte Minecraft requis', 'Connectez-vous à votre compte Microsoft avant de jouer.')
             return
         }
     }
 
+    // Java installation might have shown its own screen. Return to the game
+    // progress screen before validation, even if nothing needs downloading.
+    if(!majorOperationActive || majorOperationKind !== 'game'){
+        showMajorOperationOverlay('PRÉPARATION DE BEDRAGOTH', 'Vérification des fichiers...', 'game')
+    }
     setLaunchDetails(Lang.queryJS('landing.dlAsync.pleaseWait'))
     toggleLaunchArea(true)
     setLaunchPercentage(0, 100)
@@ -1002,15 +1023,9 @@ async function dlAsync(login = true) {
 
     if(invalidFileCount > 0) {
         loggerLaunchSuite.info('Downloading files.')
-        if(invalidFileCount >= 8){
-            showMajorOperationOverlay(
-                'MISE À JOUR DE BEDRAGOTH',
-                `${invalidFileCount} fichier${invalidFileCount === 1 ? '' : 's'} à télécharger`,
-                'game'
-            )
-        }
+        // Same full-screen overlay for one missing file or many missing files.
         setLaunchUiMode('updating')
-        setLaunchDetails(Lang.queryJS('landing.dlAsync.downloadingFiles'))
+        setLaunchDetails(`${invalidFileCount} fichier${invalidFileCount === 1 ? '' : 's'} à télécharger...`)
         setLaunchPercentage(0)
         try {
             await fullRepairModule.download(percent => {
@@ -1024,6 +1039,7 @@ async function dlAsync(login = true) {
         }
     } else {
         loggerLaunchSuite.info('No invalid files, skipping download.')
+        setLaunchDetails('Tous les fichiers sont à jour. Aucun téléchargement nécessaire.')
     }
 
     // Remove download bar.
@@ -1032,6 +1048,8 @@ async function dlAsync(login = true) {
     fullRepairModule.destroyReceiver()
 
     setLaunchUiMode('launching')
+    // Percentages are per stage: verification, optional download, launch.
+    setLaunchPercentage(0)
     setLaunchDetails(Lang.queryJS('landing.dlAsync.preparingToLaunch'))
 
     const mojangIndexProcessor = new MojangIndexProcessor(
@@ -1073,27 +1091,37 @@ async function dlAsync(login = true) {
         // const SERVER_JOINED_REGEX = /\[.+\]: \[CHAT\] [a-zA-Z0-9_]{1,16} joined the game/
         const SERVER_JOINED_REGEX = new RegExp(`\\[.+\\]: \\[CHAT\\] ${authUser.displayName} joined the game`)
 
+        let launchComplete = false
+        let launchFinishTimer = null
+        let runningProc = null
         const onLoadComplete = () => {
+            if(launchComplete) return
+            launchComplete = true
+            launchFinishTimer = null
+            setLaunchDetails('Minecraft est démarré.')
+            setLaunchPercentage(100)
             toggleLaunchArea(false)
             hideLandingDiagnosticAlert()
-            if(hasRPC){
-                DiscordWrapper.updateDetails(Lang.queryJS('landing.discord.loading'))
-                proc.stdout.on('data', gameStateChange)
+            if(runningProc){
+                if(hasRPC){
+                    DiscordWrapper.updateDetails(Lang.queryJS('landing.discord.loading'))
+                    runningProc.stdout.on('data', gameStateChange)
+                }
+                runningProc.stdout.removeListener('data', tempListener)
+                runningProc.stderr.removeListener('data', gameErrorListener)
             }
-            proc.stdout.removeListener('data', tempListener)
-            proc.stderr.removeListener('data', gameErrorListener)
         }
         const start = Date.now()
 
-        // Attach a temporary listener to the client output.
-        // Will wait for a certain bit of text meaning that
-        // the client application has started, and we can hide
-        // the progress bar stuff.
+        // NeoForge and Forge may emit slightly different boot messages.
+        // Keep the progress screen visible for at least MIN_LINGER milliseconds.
         const tempListener = function(data){
-            if(GAME_LAUNCH_REGEX.test(data.trim())){
+            if(GAME_LAUNCH_REGEX.test(String(data))){
                 const diff = Date.now()-start
                 if(diff < MIN_LINGER) {
-                    setTimeout(onLoadComplete, MIN_LINGER-diff)
+                    if(launchFinishTimer == null){
+                        launchFinishTimer = setTimeout(onLoadComplete, MIN_LINGER-diff)
+                    }
                 } else {
                     onLoadComplete()
                 }
@@ -1121,12 +1149,34 @@ async function dlAsync(login = true) {
         try {
             // Build Minecraft process.
             proc = pb.build()
+            runningProc = proc
 
-            // Bind listeners to stdout.
-            proc.stdout.on('data', tempListener)
-            proc.stderr.on('data', gameErrorListener)
+            // Bind listeners to stdout and handle early exits so the full
+            // screen never gets stranded if Minecraft crashes before boot.
+            runningProc.stdout.on('data', tempListener)
+            runningProc.stderr.on('data', gameErrorListener)
+            runningProc.once('error', err => {
+                if(launchFinishTimer != null) clearTimeout(launchFinishTimer)
+                if(!launchComplete){
+                    launchComplete = true
+                    loggerLaunchSuite.error('Minecraft process error', err)
+                    showLaunchFailure('Échec du lancement', err.message || 'Impossible de démarrer Minecraft.')
+                }
+            })
+            runningProc.once('close', code => {
+                if(launchFinishTimer != null) clearTimeout(launchFinishTimer)
+                if(!launchComplete){
+                    launchComplete = true
+                    if(code === 0){
+                        toggleLaunchArea(false)
+                    } else {
+                        showLaunchFailure('Minecraft s’est arrêté', `Minecraft a quitté avant la fin du démarrage (code ${code}). Consulte les logs de l’instance.`)
+                    }
+                }
+                if(proc === runningProc) proc = null
+            })
 
-            setLaunchDetails(Lang.queryJS('landing.dlAsync.doneEnjoyServer'))
+            setLaunchDetails('Réveil en cours...')
 
             // Init Discord Hook
             if(distro.rawDistribution.discord != null && serv.rawServer.discord != null){

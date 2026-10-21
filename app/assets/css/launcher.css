@@ -5051,8 +5051,14 @@ input:checked + .toggleSwitchSlider:before {
 
 #majorOperationBrand {
     color: #f3f0ea;
-    font-family: 'Ringbearer';
+    /* Police serif uniforme : Ringbearer alterne les hauteurs des lettres. */
+    font-family: Georgia, 'Times New Roman', serif;
     font-size: clamp(31px, 3.4vw, 56px);
+    font-weight: 400;
+    font-style: normal;
+    font-variant: normal;
+    text-transform: uppercase;
+    white-space: nowrap;
     letter-spacing: 2px;
     text-shadow: 0 3px 20px rgba(0, 0, 0, .75);
 }
