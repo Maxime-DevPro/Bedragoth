@@ -36,6 +36,12 @@ class ProcessBuilder {
         this.llDir = path.join(this.gameDir, 'liteloaderModList.json')
         this.libPath = path.join(this.commonDir, 'libraries')
 
+        // Confirm the actual game directory used when switching distributions.
+        logger.info('Bedragoth process paths', {
+            gameDirectory: this.gameDir,
+            commonDirectory: this.commonDir
+        })
+
         this.usingLiteLoader = false
         this.usingFabricLoader = false
         this.llPath = null

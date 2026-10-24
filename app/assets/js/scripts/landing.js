@@ -985,6 +985,15 @@ async function dlAsync(login = true) {
     toggleLaunchArea(true)
     setLaunchPercentage(0, 100)
 
+    // Path diagnostics: common and instances must be siblings under the data root.
+    // This log helps verify the same layout on every player's machine.
+    loggerLaunchSuite.info('Bedragoth game paths', {
+        dataDirectory: ConfigManager.getDataDirectory(),
+        commonDirectory: ConfigManager.getCommonDirectory(),
+        instanceDirectory: ConfigManager.getInstanceDirectory(),
+        selectedInstance: landingPath.join(ConfigManager.getInstanceDirectory(), serv.rawServer.id)
+    })
+
     const fullRepairModule = new FullRepair(
         ConfigManager.getCommonDirectory(),
         ConfigManager.getInstanceDirectory(),
@@ -1553,9 +1562,14 @@ async function loadNews(){
     }
 
     const newsFeed = distroData.rawDistribution.rss
-    const newsHost = new URL(newsFeed).origin + '/'
 
     try {
+        // Invalid RSS URLs should not trigger an unhandled rejection on launch.
+        const feedUrl = new URL(newsFeed)
+        if(!['http:', 'https:'].includes(feedUrl.protocol)){
+            throw new Error('RSS URL must use http or https.')
+        }
+        const newsHost = feedUrl.origin + '/'
         // Fetch through Electron's main process. This uses Chromium's network
         // stack and is not subject to renderer file:// / CORS restrictions.
         const remoteResult = await ipcRenderer.invoke('bedragothFetchRemote', newsFeed, 'text')

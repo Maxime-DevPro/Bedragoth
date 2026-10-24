@@ -12,6 +12,41 @@ const dataPath = path.join(sysRoot, '.Bedragoth')
 const launcherDir = require('@electron/remote').app.getPath('userData')
 
 /**
+ * The data directory is the ROOT of Bedragoth, never its instances folder
+ * nor a particular Minecraft instance. Legacy configs could contain either
+ * of those paths after using the directory picker; normalize them without
+ * moving or deleting any user files.
+ */
+function normalizeDataDirectory(directory){
+    const selected = typeof directory === 'string' && directory.trim()
+        ? directory.trim()
+        : dataPath
+
+    let result = path.resolve(selected)
+
+    // Repair paths such as:
+    //   .../.Bedragoth/instances
+    //   .../.Bedragoth/instances/Bedragoth-1.20.1
+    //   .../.Bedragoth/instances/Bedragoth-1.21.1/instances
+    // without making assumptions about the drive or the install location.
+    for(let i = 0; i < 6; i++){
+        const name = path.basename(result).toLowerCase()
+        const parent = path.dirname(result)
+        const parentName = path.basename(parent).toLowerCase()
+
+        if(name === 'instances'){
+            result = parent
+        } else if(parentName === 'instances' && /^bedragoth-\d+(?:\.\d+)+$/i.test(name)){
+            result = path.dirname(parent)
+        } else {
+            break
+        }
+    }
+
+    return result
+}
+
+/**
  * Retrieve the absolute path of the launcher directory.
  * 
  * @returns {string} The absolute path of the launcher directory.
@@ -27,7 +62,10 @@ exports.getLauncherDirectory = function(){
  * @returns {string} The absolute path of the launcher's data directory.
  */
 exports.getDataDirectory = function(def = false){
-    return !def ? config.settings.launcher.dataDirectory : DEFAULT_CONFIG.settings.launcher.dataDirectory
+    const selected = def
+        ? DEFAULT_CONFIG.settings.launcher.dataDirectory
+        : config.settings.launcher.dataDirectory
+    return normalizeDataDirectory(selected)
 }
 
 /**
@@ -36,7 +74,11 @@ exports.getDataDirectory = function(def = false){
  * @param {string} dataDirectory The new data directory.
  */
 exports.setDataDirectory = function(dataDirectory){
-    config.settings.launcher.dataDirectory = dataDirectory
+    const normalized = normalizeDataDirectory(dataDirectory)
+    if(normalized !== dataDirectory){
+        logger.info(`Normalisation du repertoire de donnees Bedragoth : ${dataDirectory} -> ${normalized}`)
+    }
+    config.settings.launcher.dataDirectory = normalized
 }
 
 const configPath = path.join(exports.getLauncherDirectory(), 'config.json')
@@ -150,6 +192,15 @@ exports.load = function(){
             config = validateKeySet(DEFAULT_CONFIG, config)
             exports.save()
         }
+    }
+    // Automatically repair a wrongly selected instance folder in existing
+    // players' saved settings, without changing any game files on disk.
+    const previouslySaved = config.settings.launcher.dataDirectory
+    const corrected = normalizeDataDirectory(previouslySaved)
+    if(previouslySaved !== corrected){
+        logger.warn(`Repertoire de donnees corrige : ${previouslySaved} -> ${corrected}`)
+        config.settings.launcher.dataDirectory = corrected
+        exports.save()
     }
     logger.info('Successfully Loaded')
 }
